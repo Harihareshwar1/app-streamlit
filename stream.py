@@ -1,43 +1,24 @@
-import streamlit as st
+import av
 import cv2
 import numpy as np
+import streamlit as st
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
 
-# Title of the app
+# Video processor class to handle video frame processing
+class VideoProcessor(VideoProcessorBase):
+    def recv(self, frame):
+        img = frame.to_ndarray(format="bgr24")
+
+        # Example: Convert the image to grayscale
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Stack the single channel grayscale to 3-channel to match expected output format
+        gray_img_bgr = np.stack((gray_img,) * 3, axis=-1)
+
+        return av.VideoFrame.from_ndarray(gray_img_bgr, format="bgr24")
+
+# Streamlit UI
 st.title("Live Camera Detection with Streamlit")
 
-# Start the camera
-camera = cv2.VideoCapture(0)
-
-# Function to process video frames
-def process_frame(frame):
-    # Convert the frame to grayscale
-    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    return gray_frame
-
-# Check if the camera is opened
-if not camera.isOpened():
-    st.error("Could not access the camera.")
-else:
-    # Stream the video
-    stframe = st.empty()  # Placeholder for video frame
-    while True:
-        # Read a frame from the camera
-        ret, frame = camera.read()
-        
-        # If frame is read correctly
-        if not ret:
-            st.error("Failed to read the camera frame.")
-            break
-        
-        # Process the frame (for example, convert to grayscale)
-        processed_frame = process_frame(frame)
-
-        # Display the frame using Streamlit
-        stframe.image(processed_frame, channels="GRAY", use_column_width=True)
-        
-        # Break the loop if stream is stopped manually
-        if st.button("Stop"):
-            break
-
-# Release the camera when done
-camera.release()
+# Use the webrtc_streamer to capture the video feed from the webcam via browser
+webrtc_streamer(key="example", video_processor_factory=VideoProcessor)
